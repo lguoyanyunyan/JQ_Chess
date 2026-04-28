@@ -1,0 +1,26 @@
+* text=auto
+
+*.cs text
+*.cpp text
+*.h text
+*.java text
+*.xml text
+*.md text
+*.txt text
+*.ps1 text
+*.sln text
+*.csproj text
+*.vcxproj text
+*.filters text
+*.config text
+*.resx text
+*.settings text
+
+*.dll binary
+*.exe binary
+*.pdf binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.ico binary
+*.zip binary

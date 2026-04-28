@@ -1,0 +1,67 @@
+# Local IDE and editor state
+.vs/
+.vscode/
+.idea/
+.claude/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Visual Studio / MSBuild outputs
+[Bb]in/
+[Oo]bj/
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+ipch/
+*.VC.db
+*.VC.opendb
+*.db-shm
+*.db-wal
+*.idb
+*.ilk
+*.iobj
+*.ipdb
+*.lastbuildstate
+*.log
+*.obj
+*.pch
+*.pdb
+*.recipe
+*.tlog
+
+# Java / Maven outputs
+target/
+*.class
+hs_err_pid*
+replay_pid*
+
+# Packaged artifacts and archives
+*.zip
+*.7z
+*.rar
+*.tar
+*.tar.gz
+*.tgz
+*.msi
+*.exe
+
+# Logs, backups, and temporary files
+*.bak
+*.tmp
+*.temp
+*.swp
+*.swo
+~$*
+~WRL*.tmp
+debug.txt
+log.txt
+logbak.txt
+
+# OS metadata
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+.DS_Store
