@@ -30,6 +30,8 @@ cd JQJava
 powershell -ExecutionPolicy Bypass -File scripts\package-windows.ps1
 ```
 
+打包脚本会先运行测试，再执行 Maven package 和 `jpackage`，默认输出到 `JQJava/target/dist/windows/ZangJiuQi-Java`。如需安装包，可追加 `-Installer`；安装包失败时会回退生成 app-image。
+
 ### WinForms 版
 
 使用 Visual Studio 或 MSBuild 打开并构建：
@@ -46,8 +48,10 @@ JQ/JQ.sln
 - [当前实现状态](docs/当前实现状态.md)
 - [架构说明](docs/架构说明.md)
 - [规则整理](docs/藏久棋规则整理.md)
+- [规则覆盖表](docs/规则覆盖表.md)
 - [AI 算法说明](docs/AI算法深度讲解.md)
 - [后续路线图](docs/路线图.md)
+- [发布检查清单](docs/发布检查清单.md)
 - [变更记录](docs/变更记录.md)
 
 ## 版本管理

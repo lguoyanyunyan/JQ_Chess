@@ -5,6 +5,7 @@ import com.zangjiuqi.core.Move;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class AiMoveParserTest {
@@ -26,5 +27,18 @@ class AiMoveParserTest {
         assertEquals("A2", move.jumpCaptures().get(0).toNotation());
         assertEquals(1, move.squareCaptures().size());
         assertEquals("D4", move.squareCaptures().get(0).toNotation());
+    }
+
+    @Test
+    void rejectsEmptyMoveText() {
+        assertThrows(IllegalArgumentException.class, () -> AiMoveParser.parse("", 8));
+        assertThrows(IllegalArgumentException.class, () -> AiMoveParser.parse("   ", 8));
+    }
+
+    @Test
+    void rejectsOutOfRangeCoordinates() {
+        assertThrows(IllegalArgumentException.class, () -> AiMoveParser.parse("I1", 8));
+        assertThrows(IllegalArgumentException.class, () -> AiMoveParser.parse("A9", 8));
+        assertThrows(IllegalArgumentException.class, () -> AiMoveParser.parse("A1 FC-Z9", 8));
     }
 }

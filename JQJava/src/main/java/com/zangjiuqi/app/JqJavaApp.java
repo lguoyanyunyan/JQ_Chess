@@ -30,6 +30,7 @@ import javafx.scene.control.ScrollPane;
 import javafx.scene.control.Separator;
 import javafx.scene.control.Spinner;
 import javafx.scene.control.SpinnerValueFactory;
+import javafx.scene.control.Tooltip;
 import javafx.scene.input.MouseButton;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.ColumnConstraints;
@@ -60,6 +61,9 @@ public final class JqJavaApp extends Application {
     private final Canvas boardCanvas = new Canvas(CANVAS_SIZE, CANVAS_SIZE);
     private final Label statusLabel = new Label();
     private final Label stateSummaryLabel = new Label();
+    private final Label traditionalWinModeHintLabel = new Label(
+            "传统胜负模式目前仅保存配置，不改变实际胜负判定。"
+    );
     private final ComboBox<RuleMode> modeBox = new ComboBox<>();
     private final ComboBox<GameMode> gameModeBox = new ComboBox<>();
     private final ComboBox<AiBackend> aiBackendBox = new ComboBox<>();
@@ -111,6 +115,7 @@ public final class JqJavaApp extends Application {
         boardDirectionBox.valueProperty().addListener((ignored, oldValue, newValue) -> refreshView());
         traditionalWinModeBox.getItems().setAll(TraditionalWinMode.values());
         traditionalWinModeBox.setValue(TraditionalWinMode.OFF);
+        traditionalWinModeBox.setTooltip(new Tooltip("固定棋形、吉祥阵型和让棋目标阵型判定暂未启用；当前只保存该配置。"));
         traditionalWinModeBox.valueProperty().addListener((ignored, oldValue, newValue) -> {
             if (newValue != null) {
                 boardState.setTraditionalWinMode(newValue);
@@ -184,6 +189,9 @@ public final class JqJavaApp extends Application {
         addSettingRow(aiSettings, 2, "AI后端", aiBackendBox);
         addSettingRow(aiSettings, 3, "棋盘方向", boardDirectionBox);
         addSettingRow(aiSettings, 4, "传统胜负", traditionalWinModeBox);
+        traditionalWinModeHintLabel.setWrapText(true);
+        traditionalWinModeHintLabel.setTextFill(Color.web("#5f6368"));
+        traditionalWinModeHintLabel.setStyle("-fx-font-size: 11px;");
 
         GridPane fileActions = buttonGrid();
         addButtonPair(fileActions, 0, loadButton, saveButton);
@@ -200,6 +208,7 @@ public final class JqJavaApp extends Application {
                 gameSettings,
                 sectionTitle("AI 与规则选项"),
                 aiSettings,
+                traditionalWinModeHintLabel,
                 showNumberCheckBox,
                 new Separator(),
                 sectionTitle("文件"),
@@ -686,6 +695,10 @@ public final class JqJavaApp extends Application {
                 .append("  ").append(boardState.ruleConfig().boardSize()).append("x")
                 .append(boardState.ruleConfig().boardSize()).append('\n');
         summary.append("模式：").append(gameModeText(gameModeBox.getValue())).append('\n');
+        if (boardState.traditionalWinMode() != TraditionalWinMode.OFF) {
+            summary.append("传统胜负：").append(boardState.traditionalWinMode())
+                    .append("，判定暂未启用").append('\n');
+        }
         summary.append("阶段：").append(phaseText()).append('\n');
         if (boardState.phase() == BoardPhase.FINISHED) {
             summary.append("结果：").append(resultText()).append('\n');

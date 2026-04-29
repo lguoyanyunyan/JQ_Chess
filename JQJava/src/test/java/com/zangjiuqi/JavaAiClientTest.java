@@ -2,6 +2,7 @@ package com.zangjiuqi;
 
 import com.zangjiuqi.ai.AiMoveParser;
 import com.zangjiuqi.ai.JavaAiClient;
+import com.zangjiuqi.core.BoardPhase;
 import com.zangjiuqi.core.BoardPoint;
 import com.zangjiuqi.core.BoardState;
 import com.zangjiuqi.core.Move;
@@ -121,6 +122,30 @@ class JavaAiClientTest {
     }
 
     @Test
+    void prefersTraditionalDoubleDoorFormationCaptureAtShallowDepth() {
+        BoardState state = traditionalFormationState(
+                List.of(p(3, 1), p(4, 1), p(5, 1), p(3, 2), p(3, 3), p(4, 3),
+                        p(5, 3), p(3, 4), p(4, 4), p(5, 4)),
+                p(4, 2),
+                p(4, 3)
+        );
+
+        assertAiSelectsFormationMove(state, "C5,D5", 4);
+    }
+
+    @Test
+    void prefersTraditionalLhasaFormationCaptureAtShallowDepth() {
+        BoardState state = traditionalFormationState(
+                List.of(p(3, 1), p(4, 1), p(5, 1), p(6, 1), p(3, 2), p(5, 2), p(6, 2),
+                        p(3, 3), p(4, 3), p(5, 3), p(3, 4), p(4, 4), p(5, 4), p(6, 4)),
+                p(4, 2),
+                p(4, 3)
+        );
+
+        assertAiSelectsFormationMove(state, "C5,D5", 5);
+    }
+
+    @Test
     void canPlaySeveralLegalOpeningPlies() {
         BoardState state = new BoardState(RuleMode.COMPETITIVE);
         JavaAiClient client = new JavaAiClient();
@@ -141,6 +166,37 @@ class JavaAiClientTest {
 
         assertEquals(List.of(), state.lastMovePath());
         assertEquals(true, executor.execute(state, 1, 1).success());
+    }
+
+    private static void assertAiSelectsFormationMove(BoardState state, String expectedPrefix, int expectedCaptureCount) {
+        int[][] before = state.snapshot();
+        JavaAiClient client = new JavaAiClient();
+
+        String rawMove = client.requestMove(state, 1, 1);
+        assertArrayEquals(before, state.snapshot());
+
+        Move move = AiMoveParser.parse(rawMove, state.ruleConfig().boardSize());
+        assertTrue(rawMove.startsWith(expectedPrefix), rawMove);
+        assertEquals(expectedCaptureCount, move.squareCaptures().size(), rawMove);
+
+        state.applyMove(move);
+        assertEquals(BoardPhase.MOVE, state.phase());
+        assertFalse(state.lastMovePath().isEmpty());
+    }
+
+    private static BoardState traditionalFormationState(List<BoardPoint> finalFormationPoints, BoardPoint from, BoardPoint to) {
+        BoardState state = new BoardState(RuleMode.TRADITIONAL_BASIC);
+        state.enterMovePhaseForTesting(1);
+        for (BoardPoint point : finalFormationPoints) {
+            if (!point.equals(to)) {
+                state.putForTesting(point, 2);
+            }
+        }
+        state.putForTesting(from, 2);
+        for (BoardPoint point : List.of(p(0, 6), p(1, 6), p(2, 6), p(3, 6), p(4, 6), p(5, 6))) {
+            state.putForTesting(point, 1);
+        }
+        return state;
     }
 
     private static BoardPoint p(int file, int rank) {
