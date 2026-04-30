@@ -13,7 +13,7 @@ import com.zangjiuqi.core.Move;
 import com.zangjiuqi.core.MoveCandidate;
 import com.zangjiuqi.core.PieceColor;
 import com.zangjiuqi.core.RuleMode;
-import com.zangjiuqi.core.TraditionalWinMode;
+import com.zangjiuqi.core.TraditionalWinningPattern;
 import javafx.animation.PauseTransition;
 import javafx.application.Application;
 import javafx.concurrent.Task;
@@ -61,14 +61,14 @@ public final class JqJavaApp extends Application {
     private final Canvas boardCanvas = new Canvas(CANVAS_SIZE, CANVAS_SIZE);
     private final Label statusLabel = new Label();
     private final Label stateSummaryLabel = new Label();
-    private final Label traditionalWinModeHintLabel = new Label(
-            "传统胜负模式目前仅保存配置，不改变实际胜负判定。"
+    private final Label traditionalWinningPatternHintLabel = new Label(
+            "传统获胜阵型 v1 支持拉萨；补吃完成后判定强方拉萨胜，或弱方飞子临界保门胜。"
     );
     private final ComboBox<RuleMode> modeBox = new ComboBox<>();
     private final ComboBox<GameMode> gameModeBox = new ComboBox<>();
     private final ComboBox<AiBackend> aiBackendBox = new ComboBox<>();
     private final ComboBox<BoardDirection> boardDirectionBox = new ComboBox<>();
-    private final ComboBox<TraditionalWinMode> traditionalWinModeBox = new ComboBox<>();
+    private final ComboBox<TraditionalWinningPattern> traditionalWinningPatternBox = new ComboBox<>();
     private final Spinner<Integer> depthSpinner = new Spinner<>();
     private final Spinner<Integer> timeoutWhiteSpinner = new Spinner<>();
     private final Spinner<Integer> timeoutBlackSpinner = new Spinner<>();
@@ -113,12 +113,15 @@ public final class JqJavaApp extends Application {
         boardDirectionBox.getItems().setAll(BoardDirection.NORMAL, BoardDirection.ROTATED);
         boardDirectionBox.setValue(BoardDirection.NORMAL);
         boardDirectionBox.valueProperty().addListener((ignored, oldValue, newValue) -> refreshView());
-        traditionalWinModeBox.getItems().setAll(TraditionalWinMode.values());
-        traditionalWinModeBox.setValue(TraditionalWinMode.OFF);
-        traditionalWinModeBox.setTooltip(new Tooltip("固定棋形、吉祥阵型和让棋目标阵型判定暂未启用；当前只保存该配置。"));
-        traditionalWinModeBox.valueProperty().addListener((ignored, oldValue, newValue) -> {
+        traditionalWinningPatternBox.getItems().setAll(TraditionalWinningPattern.values());
+        traditionalWinningPatternBox.setValue(TraditionalWinningPattern.OFF);
+        traditionalWinningPatternBox.setTooltip(new Tooltip(
+                "拉萨：双门/三门拉萨补吃完成后，形成方更强、对方本手开始时未入飞子且结算后无棋门则胜；"
+                        + "弱势方首次入飞子阈值且仍有棋门、强势方本手未成拉萨则弱势方胜。"
+        ));
+        traditionalWinningPatternBox.valueProperty().addListener((ignored, oldValue, newValue) -> {
             if (newValue != null) {
-                boardState.setTraditionalWinMode(newValue);
+                boardState.setTraditionalWinningPattern(newValue);
                 refreshView();
             }
         });
@@ -188,10 +191,10 @@ public final class JqJavaApp extends Application {
         addSettingRow(aiSettings, 1, "黑方超时", timeoutBlackSpinner);
         addSettingRow(aiSettings, 2, "AI后端", aiBackendBox);
         addSettingRow(aiSettings, 3, "棋盘方向", boardDirectionBox);
-        addSettingRow(aiSettings, 4, "传统胜负", traditionalWinModeBox);
-        traditionalWinModeHintLabel.setWrapText(true);
-        traditionalWinModeHintLabel.setTextFill(Color.web("#5f6368"));
-        traditionalWinModeHintLabel.setStyle("-fx-font-size: 11px;");
+        addSettingRow(aiSettings, 4, "获胜阵型", traditionalWinningPatternBox);
+        traditionalWinningPatternHintLabel.setWrapText(true);
+        traditionalWinningPatternHintLabel.setTextFill(Color.web("#5f6368"));
+        traditionalWinningPatternHintLabel.setStyle("-fx-font-size: 11px;");
 
         GridPane fileActions = buttonGrid();
         addButtonPair(fileActions, 0, loadButton, saveButton);
@@ -208,7 +211,7 @@ public final class JqJavaApp extends Application {
                 gameSettings,
                 sectionTitle("AI 与规则选项"),
                 aiSettings,
-                traditionalWinModeHintLabel,
+                traditionalWinningPatternHintLabel,
                 showNumberCheckBox,
                 new Separator(),
                 sectionTitle("文件"),
@@ -296,7 +299,7 @@ public final class JqJavaApp extends Application {
                 depthSpinner,
                 aiBackendBox,
                 boardDirectionBox,
-                traditionalWinModeBox,
+                traditionalWinningPatternBox,
                 timeoutWhiteSpinner,
                 timeoutBlackSpinner
         )) {
@@ -322,7 +325,7 @@ public final class JqJavaApp extends Application {
         destroyAiClients();
         boardState = new BoardState(mode);
         if (mode != RuleMode.TRADITIONAL_BASIC) {
-            traditionalWinModeBox.setValue(TraditionalWinMode.OFF);
+            traditionalWinningPatternBox.setValue(TraditionalWinningPattern.OFF);
         }
         aiRunning = false;
         aiPausedAfterError = false;
@@ -335,7 +338,7 @@ public final class JqJavaApp extends Application {
         cancelPendingAi();
         destroyAiClients();
         boardState = new BoardState(modeBox.getValue());
-        boardState.setTraditionalWinMode(traditionalWinModeBox.getValue());
+        boardState.setTraditionalWinningPattern(traditionalWinningPatternBox.getValue());
         aiRunning = false;
         aiPausedAfterError = false;
         gameStarted = true;
@@ -461,7 +464,7 @@ public final class JqJavaApp extends Application {
         aiPausedAfterError = false;
 
         modeBox.setValue(save.boardState().mode());
-        traditionalWinModeBox.setValue(save.boardState().traditionalWinMode());
+        traditionalWinningPatternBox.setValue(save.boardState().traditionalWinningPattern());
         gameModeBox.setValue(save.gameMode());
         aiBackendBox.setValue(save.aiBackend());
         depthSpinner.getValueFactory().setValue(save.searchDepth());
@@ -695,9 +698,8 @@ public final class JqJavaApp extends Application {
                 .append("  ").append(boardState.ruleConfig().boardSize()).append("x")
                 .append(boardState.ruleConfig().boardSize()).append('\n');
         summary.append("模式：").append(gameModeText(gameModeBox.getValue())).append('\n');
-        if (boardState.traditionalWinMode() != TraditionalWinMode.OFF) {
-            summary.append("传统胜负：").append(boardState.traditionalWinMode())
-                    .append("，判定暂未启用").append('\n');
+        if (boardState.traditionalWinningPattern() != TraditionalWinningPattern.OFF) {
+            summary.append("获胜阵型：").append(boardState.traditionalWinningPattern()).append('\n');
         }
         summary.append("阶段：").append(phaseText()).append('\n');
         if (boardState.phase() == BoardPhase.FINISHED) {
@@ -802,7 +804,7 @@ public final class JqJavaApp extends Application {
         gameModeBox.setDisable(lock || gameStarted);
         aiBackendBox.setDisable(lock || gameStarted);
         boardDirectionBox.setDisable(lock);
-        traditionalWinModeBox.setDisable(lock || gameStarted || modeBox.getValue() != RuleMode.TRADITIONAL_BASIC);
+        traditionalWinningPatternBox.setDisable(lock || gameStarted || modeBox.getValue() != RuleMode.TRADITIONAL_BASIC);
         depthSpinner.setDisable(lock || gameStarted);
         timeoutWhiteSpinner.setDisable(lock || gameStarted);
         timeoutBlackSpinner.setDisable(lock || gameStarted);

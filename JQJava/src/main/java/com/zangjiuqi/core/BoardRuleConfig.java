@@ -8,13 +8,13 @@ public final class BoardRuleConfig {
     private final int centerPointA;
     private final int centerPointB;
     private final boolean formationCapturesEnabled;
-    private final TraditionalWinMode traditionalWinMode;
+    private final TraditionalWinningPattern traditionalWinningPattern;
 
     private BoardRuleConfig(RuleMode mode) {
-        this(mode, TraditionalWinMode.OFF);
+        this(mode, TraditionalWinningPattern.OFF);
     }
 
-    private BoardRuleConfig(RuleMode mode, TraditionalWinMode traditionalWinMode) {
+    private BoardRuleConfig(RuleMode mode, TraditionalWinningPattern traditionalWinningPattern) {
         this.mode = mode;
         this.boardSize = mode.boardSize();
         this.boardPointCount = boardSize * boardSize;
@@ -22,17 +22,17 @@ public final class BoardRuleConfig {
         this.centerPointA = boardSize / 2 - 1;
         this.centerPointB = boardSize / 2;
         this.formationCapturesEnabled = mode == RuleMode.TRADITIONAL_BASIC;
-        this.traditionalWinMode = mode == RuleMode.TRADITIONAL_BASIC
-                ? traditionalWinMode == null ? TraditionalWinMode.OFF : traditionalWinMode
-                : TraditionalWinMode.OFF;
+        this.traditionalWinningPattern = mode == RuleMode.TRADITIONAL_BASIC
+                ? traditionalWinningPattern == null ? TraditionalWinningPattern.OFF : traditionalWinningPattern
+                : TraditionalWinningPattern.OFF;
     }
 
     public static BoardRuleConfig fromMode(RuleMode mode) {
         return new BoardRuleConfig(mode);
     }
 
-    public static BoardRuleConfig fromMode(RuleMode mode, TraditionalWinMode traditionalWinMode) {
-        return new BoardRuleConfig(mode, traditionalWinMode);
+    public static BoardRuleConfig fromMode(RuleMode mode, TraditionalWinningPattern traditionalWinningPattern) {
+        return new BoardRuleConfig(mode, traditionalWinningPattern);
     }
 
     public RuleMode mode() {
@@ -63,11 +63,11 @@ public final class BoardRuleConfig {
         return formationCapturesEnabled;
     }
 
-    public boolean traditionalPatternWinEnabled() {
-        return traditionalWinMode != TraditionalWinMode.OFF;
+    public boolean traditionalWinningPatternEnabled() {
+        return traditionalWinningPattern != TraditionalWinningPattern.OFF;
     }
 
-    public TraditionalWinMode traditionalWinMode() {
-        return traditionalWinMode;
+    public TraditionalWinningPattern traditionalWinningPattern() {
+        return traditionalWinningPattern;
     }
 }

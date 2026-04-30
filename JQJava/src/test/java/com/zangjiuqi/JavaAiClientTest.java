@@ -146,6 +146,20 @@ class JavaAiClientTest {
     }
 
     @Test
+    void prefersTraditionalGunFormationCaptureAtShallowDepth() {
+        BoardState state = traditionalSpecialLineState(0, p(13, 1), p(13, 0), List.of());
+
+        assertAiSelectsFormationMove(state, "B14,A14", 2);
+    }
+
+    @Test
+    void prefersTraditionalShaFormationCaptureAtShallowDepth() {
+        BoardState state = traditionalSpecialLineState(1, p(6, 2), p(6, 1), List.of(p(5, 0), p(6, 0), p(7, 0)));
+
+        assertAiSelectsFormationMove(state, "C7,B7", 4);
+    }
+
+    @Test
     void canPlaySeveralLegalOpeningPlies() {
         BoardState state = new BoardState(RuleMode.COMPETITIVE);
         JavaAiClient client = new JavaAiClient();
@@ -194,6 +208,31 @@ class JavaAiClientTest {
         }
         state.putForTesting(from, 2);
         for (BoardPoint point : List.of(p(0, 6), p(1, 6), p(2, 6), p(3, 6), p(4, 6), p(5, 6))) {
+            state.putForTesting(point, 1);
+        }
+        return state;
+    }
+
+    private static BoardState traditionalSpecialLineState(
+            int rank,
+            BoardPoint from,
+            BoardPoint to,
+            List<BoardPoint> extraOwnPieces
+    ) {
+        BoardState state = new BoardState(RuleMode.TRADITIONAL_BASIC);
+        state.enterMovePhaseForTesting(1);
+        int size = state.ruleConfig().boardSize();
+        for (int file = 0; file < size; file++) {
+            BoardPoint point = p(file, rank);
+            if (!point.equals(to)) {
+                state.putForTesting(point, 2);
+            }
+        }
+        state.putForTesting(from, 2);
+        for (BoardPoint point : extraOwnPieces) {
+            state.putForTesting(point, 2);
+        }
+        for (BoardPoint point : List.of(p(0, 12), p(1, 12), p(2, 12), p(3, 12), p(4, 12), p(5, 12))) {
             state.putForTesting(point, 1);
         }
         return state;

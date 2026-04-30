@@ -271,6 +271,21 @@ class BoardStateRuleTest {
         assertEquals(PieceColor.BLACK, state.gameResult().winner().orElseThrow());
     }
 
+    @Test
+    void sideWithNoPiecesDoesNotKeepFlyingAbility() {
+        BoardState state = new BoardState(RuleMode.TRADITIONAL_BASIC);
+        state.enterMovePhaseForTesting(1);
+        state.putForTesting(point(1, 1), 2);
+
+        state.handlePrimaryClick(point(1, 1));
+        state.handlePrimaryClick(point(2, 1));
+
+        assertEquals(BoardPhase.FINISHED, state.phase());
+        assertTrue(state.gameResult().finished());
+        assertEquals(PieceColor.BLACK, state.gameResult().winner().orElseThrow());
+        assertEquals("白方无合法着法", state.gameResult().reason());
+    }
+
     private static BoardState moveState() {
         BoardState state = new BoardState(RuleMode.COMPETITIVE);
         state.enterMovePhaseForTesting(1);

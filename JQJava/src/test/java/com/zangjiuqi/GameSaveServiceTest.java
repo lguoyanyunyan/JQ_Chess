@@ -11,7 +11,7 @@ import com.zangjiuqi.core.BoardPoint;
 import com.zangjiuqi.core.BoardState;
 import com.zangjiuqi.core.PieceColor;
 import com.zangjiuqi.core.RuleMode;
-import com.zangjiuqi.core.TraditionalWinMode;
+import com.zangjiuqi.core.TraditionalWinningPattern;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -88,18 +88,14 @@ class GameSaveServiceTest {
         assertEquals(BoardPhase.EMBATTLE, restored.phase());
         assertEquals(1, restored.get(p(0, 0)));
         assertEquals(2, restored.get(p(1, 1)));
-        assertEquals(TraditionalWinMode.OFF, restored.traditionalWinMode());
+        assertEquals(TraditionalWinningPattern.OFF, restored.traditionalWinningPattern());
     }
 
     @Test
-    void jqjSaveRoundTripsEveryReservedTraditionalWinMode() throws Exception {
-        for (TraditionalWinMode mode : List.of(
-                TraditionalWinMode.FIXED_PATTERN_REQUIRED,
-                TraditionalWinMode.FIRST_AUSPICIOUS_PATTERN,
-                TraditionalWinMode.HANDICAP_TARGET_PATTERN
-        )) {
+    void jqjSaveRoundTripsTraditionalWinningPatterns() throws Exception {
+        for (TraditionalWinningPattern pattern : TraditionalWinningPattern.values()) {
             BoardState state = new BoardState(RuleMode.TRADITIONAL_BASIC);
-            state.setTraditionalWinMode(mode);
+            state.setTraditionalWinningPattern(pattern);
             GameSave save = new GameSave(
                     false,
                     GameMode.HUMAN_VS_HUMAN,
@@ -111,21 +107,21 @@ class GameSaveServiceTest {
                     BoardDirection.NORMAL,
                     state.saveState()
             );
-            Path file = tempDir.resolve(mode.name() + ".jqj");
+            Path file = tempDir.resolve(pattern.name() + ".jqj");
 
             GameSaveService.save(file, save);
             GameSaveLoadResult loaded = GameSaveService.load(file, RuleMode.TRADITIONAL_BASIC);
 
             BoardState restored = new BoardState(RuleMode.TRADITIONAL_BASIC);
             restored.restoreState(loaded.save().boardState());
-            assertEquals(mode, restored.traditionalWinMode());
+            assertEquals(pattern, restored.traditionalWinningPattern());
         }
     }
 
     @Test
-    void jqjSaveKeepsCompetitiveTraditionalWinModeOff() throws Exception {
+    void jqjSaveKeepsCompetitiveTraditionalWinningPatternOff() throws Exception {
         BoardState state = new BoardState(RuleMode.COMPETITIVE);
-        state.setTraditionalWinMode(TraditionalWinMode.FIXED_PATTERN_REQUIRED);
+        state.setTraditionalWinningPattern(TraditionalWinningPattern.LHASA);
         GameSave save = new GameSave(
                 false,
                 GameMode.HUMAN_VS_HUMAN,
@@ -145,7 +141,25 @@ class GameSaveServiceTest {
         BoardState restored = new BoardState(RuleMode.COMPETITIVE);
         restored.restoreState(loaded.save().boardState());
         assertEquals(RuleMode.COMPETITIVE, restored.ruleConfig().mode());
-        assertEquals(TraditionalWinMode.OFF, restored.traditionalWinMode());
+        assertEquals(TraditionalWinningPattern.OFF, restored.traditionalWinningPattern());
+    }
+
+    @Test
+    void jqjSaveAcceptsLegacyTraditionalWinModeOff() throws Exception {
+        Path file = legacyTraditionalWinModeSave("OFF");
+
+        GameSaveLoadResult loaded = GameSaveService.load(file, RuleMode.TRADITIONAL_BASIC);
+        BoardState restored = new BoardState(RuleMode.TRADITIONAL_BASIC);
+        restored.restoreState(loaded.save().boardState());
+
+        assertEquals(TraditionalWinningPattern.OFF, restored.traditionalWinningPattern());
+    }
+
+    @Test
+    void jqjSaveRejectsLegacyEnabledTraditionalWinMode() throws Exception {
+        Path file = legacyTraditionalWinModeSave("FIRST_AUSPICIOUS_PATTERN");
+
+        assertThrows(IllegalArgumentException.class, () -> GameSaveService.load(file, RuleMode.TRADITIONAL_BASIC));
     }
 
     @Test
@@ -250,6 +264,27 @@ class GameSaveServiceTest {
         state.putForTesting(p(2, 7), 15);
         state.putForTesting(p(4, 7), 17);
         return state;
+    }
+
+    private Path legacyTraditionalWinModeSave(String legacyValue) throws Exception {
+        BoardState state = new BoardState(RuleMode.TRADITIONAL_BASIC);
+        GameSave save = new GameSave(
+                false,
+                GameMode.HUMAN_VS_HUMAN,
+                AiBackend.JAVA,
+                4,
+                5,
+                5,
+                false,
+                BoardDirection.NORMAL,
+                state.saveState()
+        );
+        Path file = tempDir.resolve("legacy-" + legacyValue + ".jqj");
+        GameSaveService.save(file, save);
+        String json = Files.readString(file, StandardCharsets.UTF_8)
+                .replace("\"traditionalWinningPattern\": \"OFF\"", "\"traditionalWinMode\": \"" + legacyValue + "\"");
+        Files.writeString(file, json, StandardCharsets.UTF_8);
+        return file;
     }
 
     private static BoardState formationCaptureState() {

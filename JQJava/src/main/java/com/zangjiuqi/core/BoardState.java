@@ -35,6 +35,8 @@ public final class BoardState {
 
     private int tempPiece;
     private int needSquareCaptureCount;
+    private int actionStartWhiteCount;
+    private int actionStartBlackCount;
     private FormationMatch lastFormationMatch;
     private PieceRecord clearedCenterA;
     private PieceRecord clearedCenterB;
@@ -62,12 +64,12 @@ public final class BoardState {
         return ruleConfig;
     }
 
-    public TraditionalWinMode traditionalWinMode() {
-        return ruleConfig.traditionalWinMode();
+    public TraditionalWinningPattern traditionalWinningPattern() {
+        return ruleConfig.traditionalWinningPattern();
     }
 
-    public void setTraditionalWinMode(TraditionalWinMode traditionalWinMode) {
-        this.ruleConfig = BoardRuleConfig.fromMode(ruleConfig.mode(), traditionalWinMode);
+    public void setTraditionalWinningPattern(TraditionalWinningPattern traditionalWinningPattern) {
+        this.ruleConfig = BoardRuleConfig.fromMode(ruleConfig.mode(), traditionalWinningPattern);
         resetRepetitionTracking();
     }
 
@@ -374,7 +376,7 @@ public final class BoardState {
     public SaveState saveState() {
         return new SaveState(
                 ruleConfig.mode(),
-                ruleConfig.traditionalWinMode(),
+                ruleConfig.traditionalWinningPattern(),
                 cells,
                 turn,
                 sequence,
@@ -419,7 +421,7 @@ public final class BoardState {
         if (saveState == null) {
             throw new IllegalArgumentException("Save state is required.");
         }
-        BoardRuleConfig restoredConfig = BoardRuleConfig.fromMode(saveState.mode(), saveState.traditionalWinMode());
+        BoardRuleConfig restoredConfig = BoardRuleConfig.fromMode(saveState.mode(), saveState.traditionalWinningPattern());
         requireBoardShape(saveState.cells(), restoredConfig.boardSize());
 
         this.ruleConfig = restoredConfig;
@@ -454,6 +456,8 @@ public final class BoardState {
         }
         this.tempPiece = saveState.tempPiece();
         this.needSquareCaptureCount = saveState.pendingCaptureCount();
+        this.actionStartWhiteCount = -1;
+        this.actionStartBlackCount = -1;
         this.lastFormationMatch = saveState.lastFormationMatch() == null ? null : new FormationMatch(
                 saveState.lastFormationMatch().name(),
                 saveState.lastFormationMatch().triggerPoint(),
@@ -539,6 +543,10 @@ public final class BoardState {
 
         MoveRecord lastMove = moveHistory.get(moveHistory.size() - 1);
         PieceColor movingColor = PieceColor.fromPieceValue(lastMove.pieceValue);
+        ActionPieceCounts actionStartCounts = new ActionPieceCounts(
+                pieceCount(PieceColor.WHITE),
+                pieceCount(PieceColor.BLACK)
+        );
         for (BoardPoint point : squareCaptures) {
             requireInside(point);
             int value = get(point);
@@ -552,7 +560,7 @@ public final class BoardState {
             cells[point.fileIndex()][point.rankIndex()] = 0;
         }
         resetRepetitionTracking();
-        finishFromRulesIfNeeded();
+        finishFromRulesIfNeeded(null, actionStartCounts);
     }
 
     private void handleMovePhaseClick(BoardPoint point) {
@@ -576,6 +584,8 @@ public final class BoardState {
         clearTempMove();
         lastFormationMatch = null;
         tempPiece = value;
+        actionStartWhiteCount = pieceCount(PieceColor.WHITE);
+        actionStartBlackCount = pieceCount(PieceColor.BLACK);
         tempPath.add(point);
         candidates.addAll(selectableTargets(point, value, null));
         if (candidates.isEmpty()) {
@@ -659,11 +669,13 @@ public final class BoardState {
     }
 
     private void confirmTempMove() {
+        FormationMatch completedFormationMatch = lastFormationMatch;
+        ActionPieceCounts actionStartCounts = currentActionStartCounts();
         moveHistory.add(new MoveRecord(tempPiece, new ArrayList<>(tempPath), new ArrayList<>(tempCaptures)));
         clearTempMove();
         turn = 1 - turn;
         phase = BoardPhase.MOVE;
-        if (!finishFromRulesIfNeeded()) {
+        if (!finishFromRulesIfNeeded(completedFormationMatch, actionStartCounts)) {
             recordCurrentPosition();
         }
     }
@@ -678,7 +690,7 @@ public final class BoardState {
         phase = BoardPhase.MOVE;
         clearTempMove();
         resetRepetitionTracking();
-        finishFromRulesIfNeeded();
+        finishFromRulesIfNeeded(null);
     }
 
     private List<MoveCandidate> selectableTargets(BoardPoint from, int pieceValue, BoardPoint previous) {
@@ -803,7 +815,11 @@ public final class BoardState {
         return value > 0 && PieceColor.fromPieceValue(value) == color;
     }
 
-    private boolean finishFromRulesIfNeeded() {
+    private boolean finishFromRulesIfNeeded(FormationMatch completedFormationMatch) {
+        return finishFromRulesIfNeeded(completedFormationMatch, null);
+    }
+
+    private boolean finishFromRulesIfNeeded(FormationMatch completedFormationMatch, ActionPieceCounts actionStartCounts) {
         if (phase != BoardPhase.MOVE || gameResult.finished()) {
             return false;
         }
@@ -819,23 +835,120 @@ public final class BoardState {
                 return true;
             }
         }
+        if (finishFromTraditionalWinIfNeeded(completedFormationMatch, actionStartCounts)) {
+            return true;
+        }
         if (!hasAnyLegalMove(turn)) {
             PieceColor current = currentTurnColor();
             finish(current.opponent(), current.displayName() + "无合法着法");
             return true;
         }
-        if (finishFromTraditionalWinIfNeeded()) {
+        return false;
+    }
+
+    private boolean finishFromTraditionalWinIfNeeded(FormationMatch completedFormationMatch, ActionPieceCounts actionStartCounts) {
+        if (!ruleConfig.traditionalWinningPatternEnabled()) {
+            return false;
+        }
+        TraditionalWinningPattern winningPattern = ruleConfig.traditionalWinningPattern();
+        if (winningPattern.matches(completedFormationMatch)
+                && finishFromCompletedTraditionalWinningPattern(winningPattern, completedFormationMatch, actionStartCounts)) {
             return true;
+        }
+
+        return finishFromTraditionalFlyThresholdIfNeeded(winningPattern, completedFormationMatch, actionStartCounts);
+    }
+
+    private boolean finishFromCompletedTraditionalWinningPattern(
+            TraditionalWinningPattern winningPattern,
+            FormationMatch completedFormationMatch,
+            ActionPieceCounts actionStartCounts
+    ) {
+        PieceColor winner = completedFormationMatch.color();
+        PieceColor weakSide = winner.opponent();
+        int winnerCount = pieceCount(winner);
+        int weakCount = pieceCount(weakSide);
+        if (winnerCount <= weakCount
+                || countAtActionStart(actionStartCounts, weakSide) <= ruleConfig.flyPieceThreshold()
+                || hasSquareGate(weakSide)) {
+            return false;
+        }
+        finish(completedFormationMatch.color(), "传统获胜阵型：" + winningPattern);
+        return true;
+    }
+
+    private boolean finishFromTraditionalFlyThresholdIfNeeded(
+            TraditionalWinningPattern winningPattern,
+            FormationMatch completedFormationMatch,
+            ActionPieceCounts actionStartCounts
+    ) {
+        if (actionStartCounts == null) {
+            return false;
+        }
+
+        for (PieceColor weakSide : PieceColor.values()) {
+            if (!enteredFlyThresholdThisAction(actionStartCounts, weakSide) || !hasSquareGate(weakSide)) {
+                continue;
+            }
+            PieceColor strongSide = weakSide.opponent();
+            boolean strongSideCompletedWinningPattern = completedFormationMatch != null
+                    && completedFormationMatch.color() == strongSide
+                    && winningPattern.matches(completedFormationMatch);
+            if (!strongSideCompletedWinningPattern) {
+                finish(weakSide, "传统飞子临界：弱势方保有棋门");
+                return true;
+            }
         }
         return false;
     }
 
-    private boolean finishFromTraditionalWinIfNeeded() {
-        if (!ruleConfig.traditionalPatternWinEnabled()) {
-            return false;
+    private boolean enteredFlyThresholdThisAction(ActionPieceCounts actionStartCounts, PieceColor color) {
+        int threshold = ruleConfig.flyPieceThreshold();
+        int currentCount = pieceCount(color);
+        return countAtActionStart(actionStartCounts, color) > threshold
+                && currentCount > 0
+                && currentCount <= threshold;
+    }
+
+    private int countAtActionStart(ActionPieceCounts actionStartCounts, PieceColor color) {
+        if (actionStartCounts == null) {
+            return pieceCount(color);
         }
-        // Traditional fixed/auspicious pattern wins are configured here but intentionally
-        // left inactive until the corresponding pattern recognizers are implemented.
+        return color == PieceColor.WHITE ? actionStartCounts.whiteCount() : actionStartCounts.blackCount();
+    }
+
+    private ActionPieceCounts currentActionStartCounts() {
+        if (actionStartWhiteCount < 0 || actionStartBlackCount < 0) {
+            return null;
+        }
+        return new ActionPieceCounts(actionStartWhiteCount, actionStartBlackCount);
+    }
+
+    private boolean hasSquareGate(PieceColor color) {
+        int size = ruleConfig.boardSize();
+        for (int file = 0; file < size - 1; file++) {
+            for (int rank = 0; rank < size - 1; rank++) {
+                int own = 0;
+                int empty = 0;
+                BoardPoint[] square = {
+                        new BoardPoint(file, rank),
+                        new BoardPoint(file + 1, rank),
+                        new BoardPoint(file, rank + 1),
+                        new BoardPoint(file + 1, rank + 1)
+                };
+                for (BoardPoint point : square) {
+                    int value = cells[point.fileIndex()][point.rankIndex()];
+                    if (value == 0) {
+                        empty++;
+                    } else if (PieceColor.fromPieceValue(value) == color) {
+                        own++;
+                    }
+                }
+                if (own == 3 && empty == 1) {
+                    return true;
+                }
+            }
+        }
         return false;
     }
 
@@ -899,8 +1012,10 @@ public final class BoardState {
     }
 
     private boolean canSideFlyByColor(PieceColor color) {
+        int count = pieceCount(color);
         return (phase == BoardPhase.MOVE || phase == BoardPhase.SQUARE_CAPTURE)
-                && pieceCount(color) <= ruleConfig.flyPieceThreshold();
+                && count > 0
+                && count <= ruleConfig.flyPieceThreshold();
     }
 
     private boolean shouldRestrictSingleJump(int currentTurn) {
@@ -987,6 +1102,8 @@ public final class BoardState {
         candidates.clear();
         tempPiece = 0;
         needSquareCaptureCount = 0;
+        actionStartWhiteCount = -1;
+        actionStartBlackCount = -1;
         lastFormationMatch = null;
     }
 
@@ -1053,7 +1170,7 @@ public final class BoardState {
     private String buildPositionKey() {
         StringBuilder key = new StringBuilder(ruleConfig.boardPointCount() + 24);
         key.append(ruleConfig.mode().name()).append('|');
-        key.append(ruleConfig.traditionalWinMode().name()).append('|');
+        key.append(ruleConfig.traditionalWinningPattern().name()).append('|');
         key.append(phase.name()).append('|');
         key.append(turn).append('|');
         for (int rank = 0; rank < ruleConfig.boardSize(); rank++) {
@@ -1140,7 +1257,7 @@ public final class BoardState {
 
     public record SaveState(
             RuleMode mode,
-            TraditionalWinMode traditionalWinMode,
+            TraditionalWinningPattern traditionalWinningPattern,
             int[][] cells,
             int turn,
             int sequence,
@@ -1161,9 +1278,9 @@ public final class BoardState {
             Map<String, Integer> repetitionCounts
     ) {
         public SaveState {
-            traditionalWinMode = mode == RuleMode.TRADITIONAL_BASIC && traditionalWinMode != null
-                    ? traditionalWinMode
-                    : TraditionalWinMode.OFF;
+            traditionalWinningPattern = mode == RuleMode.TRADITIONAL_BASIC && traditionalWinningPattern != null
+                    ? traditionalWinningPattern
+                    : TraditionalWinningPattern.OFF;
             cells = copyCells(cells);
             resultReason = resultReason == null ? "" : resultReason;
             placementHistory = List.copyOf(placementHistory == null ? List.of() : placementHistory);
@@ -1201,6 +1318,9 @@ public final class BoardState {
         public FormationSnapshot {
             points = List.copyOf(points == null ? List.of() : points);
         }
+    }
+
+    private record ActionPieceCounts(int whiteCount, int blackCount) {
     }
 
     private static final class PlacementRecord {
@@ -1249,6 +1369,8 @@ public final class BoardState {
         private final List<MoveCandidate> candidates;
         private final int tempPiece;
         private final int needSquareCaptureCount;
+        private final int actionStartWhiteCount;
+        private final int actionStartBlackCount;
         private final FormationMatch lastFormationMatch;
         private final PieceRecord clearedCenterA;
         private final PieceRecord clearedCenterB;
@@ -1268,6 +1390,8 @@ public final class BoardState {
             this.candidates = new ArrayList<>(state.candidates);
             this.tempPiece = state.tempPiece;
             this.needSquareCaptureCount = state.needSquareCaptureCount;
+            this.actionStartWhiteCount = state.actionStartWhiteCount;
+            this.actionStartBlackCount = state.actionStartBlackCount;
             this.lastFormationMatch = state.lastFormationMatch;
             this.clearedCenterA = state.clearedCenterA;
             this.clearedCenterB = state.clearedCenterB;
@@ -1297,6 +1421,8 @@ public final class BoardState {
             state.candidates.addAll(candidates);
             state.tempPiece = tempPiece;
             state.needSquareCaptureCount = needSquareCaptureCount;
+            state.actionStartWhiteCount = actionStartWhiteCount;
+            state.actionStartBlackCount = actionStartBlackCount;
             state.lastFormationMatch = lastFormationMatch;
             state.clearedCenterA = clearedCenterA;
             state.clearedCenterB = clearedCenterB;

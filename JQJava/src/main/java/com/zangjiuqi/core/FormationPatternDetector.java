@@ -88,6 +88,7 @@ public final class FormationPatternDetector {
                 }
             }
         }
+        addLineFormationMatches(cells, boardSize, color, movedFrom, movedTo, matches, seen);
         matches.sort(Comparator.comparingInt(FormationMatch::captureCount).reversed()
                 .thenComparing(FormationMatch::name));
         return matches;
@@ -144,6 +145,75 @@ public final class FormationPatternDetector {
             return null;
         }
         return new FormationMatch(template.name(), to, color, template.captureCount(), points);
+    }
+
+    private static void addLineFormationMatches(
+            int[][] cells,
+            int boardSize,
+            PieceColor color,
+            BoardPoint movedFrom,
+            BoardPoint movedTo,
+            List<FormationMatch> matches,
+            Set<String> seen
+    ) {
+        if (!movedFrom.isInside(boardSize) || !movedTo.isInside(boardSize)) {
+            return;
+        }
+        if (cells[movedFrom.fileIndex()][movedFrom.rankIndex()] != 0 || !sameColor(cells, movedTo, color)) {
+            return;
+        }
+
+        List<BoardPoint> row = fullRow(cells, boardSize, color, movedTo.rankIndex());
+        if (!row.isEmpty()) {
+            addLineFormationMatch(cells, boardSize, color, movedTo, row, matches, seen);
+        }
+
+        List<BoardPoint> column = fullColumn(cells, boardSize, color, movedTo.fileIndex());
+        if (!column.isEmpty()) {
+            addLineFormationMatch(cells, boardSize, color, movedTo, column, matches, seen);
+        }
+    }
+
+    private static void addLineFormationMatch(
+            int[][] cells,
+            int boardSize,
+            PieceColor color,
+            BoardPoint movedTo,
+            List<BoardPoint> points,
+            List<FormationMatch> matches,
+            Set<String> seen
+    ) {
+        int squareCount = squareCountAt(cells, boardSize, color, movedTo);
+        String name = squareCount >= 1 && squareCount <= 2 ? "煞" : "枪";
+        FormationMatch match = new FormationMatch(name, movedTo, color, 2, points);
+        String key = match.name() + "|" + match.triggerPoint() + "|" + match.points();
+        if (seen.add(key)) {
+            matches.add(match);
+        }
+    }
+
+    private static List<BoardPoint> fullRow(int[][] cells, int boardSize, PieceColor color, int rank) {
+        List<BoardPoint> points = new ArrayList<>(boardSize);
+        for (int file = 0; file < boardSize; file++) {
+            BoardPoint point = new BoardPoint(file, rank);
+            if (!sameColor(cells, point, color)) {
+                return List.of();
+            }
+            points.add(point);
+        }
+        return points;
+    }
+
+    private static List<BoardPoint> fullColumn(int[][] cells, int boardSize, PieceColor color, int file) {
+        List<BoardPoint> points = new ArrayList<>(boardSize);
+        for (int rank = 0; rank < boardSize; rank++) {
+            BoardPoint point = new BoardPoint(file, rank);
+            if (!sameColor(cells, point, color)) {
+                return List.of();
+            }
+            points.add(point);
+        }
+        return points;
     }
 
     private static boolean hasContinuousSquarePotential(

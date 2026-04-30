@@ -2,7 +2,7 @@ package com.zangjiuqi;
 
 import com.zangjiuqi.core.BoardRuleConfig;
 import com.zangjiuqi.core.RuleMode;
-import com.zangjiuqi.core.TraditionalWinMode;
+import com.zangjiuqi.core.TraditionalWinningPattern;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -19,8 +19,8 @@ class BoardRuleConfigTest {
         assertEquals(3, config.centerPointA());
         assertEquals(4, config.centerPointB());
         assertEquals(8, config.flyPieceThreshold());
-        assertEquals(TraditionalWinMode.OFF, config.traditionalWinMode());
-        assertFalse(config.traditionalPatternWinEnabled());
+        assertEquals(TraditionalWinningPattern.OFF, config.traditionalWinningPattern());
+        assertFalse(config.traditionalWinningPatternEnabled());
     }
 
     @Test
@@ -32,29 +32,29 @@ class BoardRuleConfigTest {
         assertEquals(6, config.centerPointA());
         assertEquals(7, config.centerPointB());
         assertEquals(14, config.flyPieceThreshold());
-        assertEquals(TraditionalWinMode.OFF, config.traditionalWinMode());
-        assertFalse(config.traditionalPatternWinEnabled());
+        assertEquals(TraditionalWinningPattern.OFF, config.traditionalWinningPattern());
+        assertFalse(config.traditionalWinningPatternEnabled());
     }
 
     @Test
-    void traditionalModeCanEnablePatternWinSkeleton() {
+    void traditionalModeCanEnableWinningPattern() {
         BoardRuleConfig config = BoardRuleConfig.fromMode(
                 RuleMode.TRADITIONAL_BASIC,
-                TraditionalWinMode.FIRST_AUSPICIOUS_PATTERN
+                TraditionalWinningPattern.LHASA
         );
 
-        assertEquals(TraditionalWinMode.FIRST_AUSPICIOUS_PATTERN, config.traditionalWinMode());
-        assertTrue(config.traditionalPatternWinEnabled());
+        assertEquals(TraditionalWinningPattern.LHASA, config.traditionalWinningPattern());
+        assertTrue(config.traditionalWinningPatternEnabled());
     }
 
     @Test
-    void competitiveModeNormalizesTraditionalWinModeToOff() {
+    void competitiveModeNormalizesTraditionalWinningPatternToOff() {
         BoardRuleConfig config = BoardRuleConfig.fromMode(
                 RuleMode.COMPETITIVE,
-                TraditionalWinMode.FIXED_PATTERN_REQUIRED
+                TraditionalWinningPattern.LHASA
         );
 
-        assertEquals(TraditionalWinMode.OFF, config.traditionalWinMode());
-        assertFalse(config.traditionalPatternWinEnabled());
+        assertEquals(TraditionalWinningPattern.OFF, config.traditionalWinningPattern());
+        assertFalse(config.traditionalWinningPatternEnabled());
     }
 }

@@ -5,7 +5,7 @@ import com.zangjiuqi.core.BoardPoint;
 import com.zangjiuqi.core.BoardState;
 import com.zangjiuqi.core.PieceColor;
 import com.zangjiuqi.core.RuleMode;
-import com.zangjiuqi.core.TraditionalWinMode;
+import com.zangjiuqi.core.TraditionalWinningPattern;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -75,7 +75,7 @@ public final class GameSaveService {
     private static void writeBoardState(StringBuilder json, BoardState.SaveState state, int level) {
         json.append("{\n");
         field(json, level + 1, "mode", state.mode().name()).append(",\n");
-        field(json, level + 1, "traditionalWinMode", state.traditionalWinMode().name()).append(",\n");
+        field(json, level + 1, "traditionalWinningPattern", state.traditionalWinningPattern().name()).append(",\n");
         field(json, level + 1, "turn", state.turn()).append(",\n");
         field(json, level + 1, "sequence", state.sequence()).append(",\n");
         field(json, level + 1, "phase", state.phase().name()).append(",\n");
@@ -321,7 +321,7 @@ public final class GameSaveService {
         int boardSize = mode.boardSize();
         return new BoardState.SaveState(
                 mode,
-                readTraditionalWinMode(json.get("traditionalWinMode")),
+                readTraditionalWinningPattern(json),
                 readIntMatrix(json.get("cells"), boardSize),
                 asInt(json.get("turn"), "turn"),
                 asInt(json.get("sequence"), "sequence"),
@@ -456,11 +456,21 @@ public final class GameSaveService {
         return BoardPoint.parse(asString(value, field), boardSize);
     }
 
-    private static TraditionalWinMode readTraditionalWinMode(Object value) {
-        if (value == null) {
-            return TraditionalWinMode.OFF;
+    private static TraditionalWinningPattern readTraditionalWinningPattern(Map<String, Object> json) {
+        Object value = json.get("traditionalWinningPattern");
+        if (value != null) {
+            return TraditionalWinningPattern.valueOf(asString(value, "traditionalWinningPattern"));
         }
-        return TraditionalWinMode.valueOf(asString(value, "traditionalWinMode"));
+
+        Object legacyValue = json.get("traditionalWinMode");
+        if (legacyValue == null) {
+            return TraditionalWinningPattern.OFF;
+        }
+        String legacy = asString(legacyValue, "traditionalWinMode");
+        if ("OFF".equals(legacy)) {
+            return TraditionalWinningPattern.OFF;
+        }
+        throw new IllegalArgumentException("旧存档使用传统胜负方式 " + legacy + "，请重新选择传统获胜阵型后再保存。");
     }
 
     @SuppressWarnings("unchecked")

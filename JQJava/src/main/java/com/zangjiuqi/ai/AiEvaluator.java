@@ -163,6 +163,12 @@ final class AiEvaluator {
     }
 
     private int formationNameBonus(String name) {
+        if (name.contains("煞")) {
+            return 560;
+        }
+        if (name.contains("枪")) {
+            return 460;
+        }
         if (name.contains("拉萨")) {
             return 350;
         }

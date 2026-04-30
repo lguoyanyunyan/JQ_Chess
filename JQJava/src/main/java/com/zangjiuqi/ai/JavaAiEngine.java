@@ -249,6 +249,12 @@ public final class JavaAiEngine {
     }
 
     private int formationNameBonus(String name) {
+        if (name.contains("煞")) {
+            return 9_000;
+        }
+        if (name.contains("枪")) {
+            return 7_000;
+        }
         if (name.contains("拉萨")) {
             return 6_000;
         }
@@ -267,7 +273,7 @@ public final class JavaAiEngine {
         key.append(depth).append('|');
         key.append(state.ruleConfig().boardSize()).append('|');
         key.append(state.ruleConfig().mode().name()).append('|');
-        key.append(state.ruleConfig().traditionalWinMode().name()).append('|');
+        key.append(state.ruleConfig().traditionalWinningPattern().name()).append('|');
         key.append(state.phase().name()).append('|');
         key.append(state.currentTurnColor().name()).append('|');
         key.append(state.currentAiState().name()).append('|');
