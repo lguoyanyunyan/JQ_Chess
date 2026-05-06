@@ -8,6 +8,7 @@ import com.zangjiuqi.core.BoardState;
 import com.zangjiuqi.core.Move;
 import com.zangjiuqi.core.PieceColor;
 import com.zangjiuqi.core.RuleMode;
+import com.zangjiuqi.core.TraditionalWinningPattern;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -160,6 +161,48 @@ class JavaAiClientTest {
     }
 
     @Test
+    void traditionalProfilePrefersBreakingGateNearFlyThreshold() {
+        BoardState state = traditionalGateBreakingState();
+        JavaAiClient client = new JavaAiClient();
+
+        String rawMove = client.requestMove(state, 1, 1);
+        Move move = AiMoveParser.parse(rawMove, state.ruleConfig().boardSize());
+
+        assertTrue(rawMove.startsWith("C6,C5"), rawMove);
+        assertTrue(move.squareCaptures().stream().anyMatch(List.of(p(0, 10), p(0, 9), p(1, 9))::contains), rawMove);
+    }
+
+    @Test
+    void competitiveProfileStillPrefersDirectMaterialCaptureInSimilarShape() {
+        BoardState state = new BoardState(RuleMode.COMPETITIVE);
+        state.enterMovePhase(PieceColor.BLACK);
+        state.putForTesting(p(1, 1), 2);
+        state.putForTesting(p(2, 1), 1);
+        state.putForTesting(p(4, 4), 4);
+        state.putForTesting(p(5, 4), 6);
+        state.putForTesting(p(6, 4), 8);
+        state.putForTesting(p(7, 4), 10);
+        state.putForTesting(p(4, 5), 12);
+        state.putForTesting(p(5, 5), 14);
+        state.putForTesting(p(6, 5), 16);
+        state.putForTesting(p(7, 5), 18);
+        state.putForTesting(p(4, 6), 3);
+        state.putForTesting(p(5, 6), 5);
+        state.putForTesting(p(6, 6), 7);
+        state.putForTesting(p(7, 6), 9);
+        state.putForTesting(p(4, 7), 11);
+        state.putForTesting(p(5, 7), 13);
+        state.putForTesting(p(6, 7), 15);
+        state.putForTesting(p(7, 7), 17);
+        state.putForTesting(p(0, 7), 19);
+
+        JavaAiClient client = new JavaAiClient();
+        String rawMove = client.requestMove(state, 1, 1);
+
+        assertEquals("B2,B4 TC-B3", rawMove);
+    }
+
+    @Test
     void canPlaySeveralLegalOpeningPlies() {
         BoardState state = new BoardState(RuleMode.COMPETITIVE);
         JavaAiClient client = new JavaAiClient();
@@ -233,6 +276,24 @@ class JavaAiClientTest {
             state.putForTesting(point, 2);
         }
         for (BoardPoint point : List.of(p(0, 12), p(1, 12), p(2, 12), p(3, 12), p(4, 12), p(5, 12))) {
+            state.putForTesting(point, 1);
+        }
+        return state;
+    }
+
+    private static BoardState traditionalGateBreakingState() {
+        BoardState state = new BoardState(RuleMode.TRADITIONAL_BASIC);
+        state.enterMovePhaseForTesting(1);
+        state.setTraditionalWinningPattern(TraditionalWinningPattern.LHASA);
+        state.putForTesting(p(3, 1), 2);
+        state.putForTesting(p(4, 1), 2);
+        state.putForTesting(p(3, 2), 2);
+        state.putForTesting(p(5, 2), 2);
+        for (BoardPoint point : List.of(
+                p(0, 10), p(0, 9), p(1, 9),
+                p(2, 10), p(3, 10), p(4, 10), p(5, 10), p(6, 10), p(7, 10),
+                p(8, 10), p(9, 10), p(10, 10), p(11, 10), p(12, 10), p(13, 10)
+        )) {
             state.putForTesting(point, 1);
         }
         return state;

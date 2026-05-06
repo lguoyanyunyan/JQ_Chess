@@ -62,7 +62,7 @@ public final class JqJavaApp extends Application {
     private final Label statusLabel = new Label();
     private final Label stateSummaryLabel = new Label();
     private final Label traditionalWinningPatternHintLabel = new Label(
-            "传统获胜阵型 v1 支持拉萨；补吃完成后判定强方拉萨胜，或弱方飞子临界保门胜。"
+            "传统获胜阵型支持拉萨/金鱼；只按当前选择的阵型判胜和引导传统 AI，补吃完成后再结算强方胜或弱方飞子临界保门胜。"
     );
     private final ComboBox<RuleMode> modeBox = new ComboBox<>();
     private final ComboBox<GameMode> gameModeBox = new ComboBox<>();
@@ -116,8 +116,8 @@ public final class JqJavaApp extends Application {
         traditionalWinningPatternBox.getItems().setAll(TraditionalWinningPattern.values());
         traditionalWinningPatternBox.setValue(TraditionalWinningPattern.OFF);
         traditionalWinningPatternBox.setTooltip(new Tooltip(
-                "拉萨：双门/三门拉萨补吃完成后，形成方更强、对方本手开始时未入飞子且结算后无棋门则胜；"
-                        + "弱势方首次入飞子阈值且仍有棋门、强势方本手未成拉萨则弱势方胜。"
+                "选择拉萨时只检查双门/三门拉萨；选择金鱼时只检查金鱼。强方棋子更多、对方本手开始时未入飞子且结算后无棋门则胜；"
+                        + "弱势方首次入飞子阈值且仍有棋门、强方未形成或保持所选阵型则弱势方胜。"
         ));
         traditionalWinningPatternBox.valueProperty().addListener((ignored, oldValue, newValue) -> {
             if (newValue != null) {

@@ -45,13 +45,21 @@ class BoardRuleConfigTest {
 
         assertEquals(TraditionalWinningPattern.LHASA, config.traditionalWinningPattern());
         assertTrue(config.traditionalWinningPatternEnabled());
+
+        BoardRuleConfig goldfish = BoardRuleConfig.fromMode(
+                RuleMode.TRADITIONAL_BASIC,
+                TraditionalWinningPattern.GOLDFISH
+        );
+
+        assertEquals(TraditionalWinningPattern.GOLDFISH, goldfish.traditionalWinningPattern());
+        assertTrue(goldfish.traditionalWinningPatternEnabled());
     }
 
     @Test
     void competitiveModeNormalizesTraditionalWinningPatternToOff() {
         BoardRuleConfig config = BoardRuleConfig.fromMode(
                 RuleMode.COMPETITIVE,
-                TraditionalWinningPattern.LHASA
+                TraditionalWinningPattern.GOLDFISH
         );
 
         assertEquals(TraditionalWinningPattern.OFF, config.traditionalWinningPattern());

@@ -856,6 +856,10 @@ public final class BoardState {
             return true;
         }
 
+        if (finishFromStaticTraditionalWinningPattern(winningPattern, actionStartCounts)) {
+            return true;
+        }
+
         return finishFromTraditionalFlyThresholdIfNeeded(winningPattern, completedFormationMatch, actionStartCounts);
     }
 
@@ -877,6 +881,33 @@ public final class BoardState {
         return true;
     }
 
+    private boolean finishFromStaticTraditionalWinningPattern(
+            TraditionalWinningPattern winningPattern,
+            ActionPieceCounts actionStartCounts
+    ) {
+        int whiteCount = pieceCount(PieceColor.WHITE);
+        int blackCount = pieceCount(PieceColor.BLACK);
+        if (whiteCount == blackCount) {
+            return false;
+        }
+
+        PieceColor strongSide = blackCount > whiteCount ? PieceColor.BLACK : PieceColor.WHITE;
+        PieceColor weakSide = strongSide.opponent();
+        if (countAtActionStart(actionStartCounts, weakSide) <= ruleConfig.flyPieceThreshold()
+                || hasSquareGate(weakSide)
+                || TraditionalPatternStaticScanner.bestCompleteMatch(
+                        cells,
+                        ruleConfig.boardSize(),
+                        strongSide,
+                        TraditionalPatternTemplates.templatesFor(winningPattern)
+                ).isEmpty()) {
+            return false;
+        }
+
+        finish(strongSide, "传统获胜阵型：" + winningPattern);
+        return true;
+    }
+
     private boolean finishFromTraditionalFlyThresholdIfNeeded(
             TraditionalWinningPattern winningPattern,
             FormationMatch completedFormationMatch,
@@ -894,7 +925,13 @@ public final class BoardState {
             boolean strongSideCompletedWinningPattern = completedFormationMatch != null
                     && completedFormationMatch.color() == strongSide
                     && winningPattern.matches(completedFormationMatch);
-            if (!strongSideCompletedWinningPattern) {
+            boolean strongSideKeptWinningPattern = TraditionalPatternStaticScanner.bestCompleteMatch(
+                    cells,
+                    ruleConfig.boardSize(),
+                    strongSide,
+                    TraditionalPatternTemplates.templatesFor(winningPattern)
+            ).isPresent();
+            if (!strongSideCompletedWinningPattern && !strongSideKeptWinningPattern) {
                 finish(weakSide, "传统飞子临界：弱势方保有棋门");
                 return true;
             }

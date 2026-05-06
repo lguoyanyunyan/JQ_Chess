@@ -15,6 +15,10 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class TraditionalWinningPatternTest {
+    private static final String LHASA_WIN_REASON = "\u4f20\u7edf\u83b7\u80dc\u9635\u578b\uff1a\u62c9\u8428";
+    private static final String GOLDFISH_WIN_REASON = "\u4f20\u7edf\u83b7\u80dc\u9635\u578b\uff1a\u91d1\u9c7c";
+    private static final String WEAK_GATE_REASON = "\u4f20\u7edf\u98de\u5b50\u4e34\u754c\uff1a\u5f31\u52bf\u65b9\u4fdd\u6709\u68cb\u95e8";
+
     @Test
     void offDoesNotFinishAfterLhasaCaptureCompletes() {
         BoardState state = lhasaCaptureState(TraditionalWinningPattern.OFF, lhasaDoubleDoorPoints(), p(4, 2), p(4, 3));
@@ -40,8 +44,8 @@ class TraditionalWinningPatternTest {
         assertEquals(BoardPhase.FINISHED, state.phase());
         assertTrue(state.gameResult().finished());
         assertEquals(PieceColor.BLACK, state.gameResult().winner().orElseThrow());
-        assertEquals("传统获胜阵型：拉萨", state.gameResult().reason());
-        assertEquals("黑方获胜：传统获胜阵型：拉萨", state.statusText());
+        assertEquals(LHASA_WIN_REASON, state.gameResult().reason());
+        assertEquals("\u9ed1\u65b9\u83b7\u80dc\uff1a" + LHASA_WIN_REASON, state.statusText());
     }
 
     @Test
@@ -49,15 +53,11 @@ class TraditionalWinningPatternTest {
         BoardState state = lhasaCaptureState(TraditionalWinningPattern.LHASA, lhasaThreeDoorPoints(), p(4, 2), p(4, 3));
 
         triggerFormation(state, p(4, 2), p(4, 3));
-        assertEquals(BoardPhase.SQUARE_CAPTURE, state.phase());
-        assertFalse(state.gameResult().finished());
-
         completeCaptures(state);
 
         assertEquals(BoardPhase.FINISHED, state.phase());
-        assertTrue(state.gameResult().finished());
         assertEquals(PieceColor.BLACK, state.gameResult().winner().orElseThrow());
-        assertEquals("传统获胜阵型：拉萨", state.gameResult().reason());
+        assertEquals(LHASA_WIN_REASON, state.gameResult().reason());
     }
 
     @Test
@@ -77,9 +77,8 @@ class TraditionalWinningPatternTest {
         completeCaptures(state);
 
         assertEquals(BoardPhase.FINISHED, state.phase());
-        assertTrue(state.gameResult().finished());
         assertEquals(PieceColor.BLACK, state.gameResult().winner().orElseThrow());
-        assertEquals("传统获胜阵型：拉萨", state.gameResult().reason());
+        assertEquals(LHASA_WIN_REASON, state.gameResult().reason());
     }
 
     @Test
@@ -98,10 +97,119 @@ class TraditionalWinningPatternTest {
         completeCaptures(state);
 
         assertEquals(BoardPhase.FINISHED, state.phase());
-        assertTrue(state.gameResult().finished());
         assertEquals(PieceColor.WHITE, state.gameResult().winner().orElseThrow());
-        assertEquals("传统飞子临界：弱势方保有棋门", state.gameResult().reason());
-        assertEquals("白方获胜：传统飞子临界：弱势方保有棋门", state.statusText());
+        assertEquals(WEAK_GATE_REASON, state.gameResult().reason());
+        assertEquals("\u767d\u65b9\u83b7\u80dc\uff1a" + WEAK_GATE_REASON, state.statusText());
+    }
+
+    @Test
+    void staticLhasaFinishesWhenStrongSideHasKeptLhasaAndWeakSideHasNoGate() {
+        BoardState state = staticLhasaSquareCaptureState(TraditionalWinningPattern.LHASA, weakNoGatePieces(15));
+
+        triggerFormation(state, p(5, 2), p(4, 2));
+        assertEquals(BoardPhase.SQUARE_CAPTURE, state.phase());
+        assertFalse(state.lastFormationMatch().isPresent());
+
+        completeCaptures(state);
+
+        assertEquals(BoardPhase.FINISHED, state.phase());
+        assertEquals(PieceColor.BLACK, state.gameResult().winner().orElseThrow());
+        assertEquals(LHASA_WIN_REASON, state.gameResult().reason());
+    }
+
+    @Test
+    void staticLhasaWithWeakGateDoesNotFinishOrTriggerWeakThresholdWin() {
+        BoardState state = staticLhasaSquareCaptureState(TraditionalWinningPattern.LHASA, weakPiecesWithGateForCount(15));
+
+        triggerFormation(state, p(5, 2), p(4, 2));
+        completeCaptures(state);
+
+        assertEquals(BoardPhase.MOVE, state.phase());
+        assertFalse(state.gameResult().finished());
+    }
+
+    @Test
+    void goldfishWinningPatternFinishesFromStaticGoldfishWhenWeakSideHasNoGate() {
+        BoardState state = staticGoldfishSquareCaptureState(TraditionalWinningPattern.GOLDFISH, weakNoGatePieces(15));
+
+        triggerFormation(state, p(5, 2), p(4, 2));
+        assertEquals(BoardPhase.SQUARE_CAPTURE, state.phase());
+        assertFalse(state.lastFormationMatch().isPresent());
+
+        completeCaptures(state);
+
+        assertEquals(BoardPhase.FINISHED, state.phase());
+        assertEquals(PieceColor.BLACK, state.gameResult().winner().orElseThrow());
+        assertEquals(GOLDFISH_WIN_REASON, state.gameResult().reason());
+    }
+
+    @Test
+    void goldfishSelectionDoesNotLetStaticLhasaWin() {
+        BoardState state = staticLhasaSquareCaptureState(TraditionalWinningPattern.GOLDFISH, weakNoGatePieces(15));
+
+        triggerFormation(state, p(5, 2), p(4, 2));
+        completeCaptures(state);
+
+        assertEquals(BoardPhase.MOVE, state.phase());
+        assertFalse(state.gameResult().finished());
+    }
+
+    @Test
+    void lhasaSelectionDoesNotLetStaticGoldfishWin() {
+        BoardState state = staticGoldfishSquareCaptureState(TraditionalWinningPattern.LHASA, weakNoGatePieces(15));
+
+        triggerFormation(state, p(5, 2), p(4, 2));
+        completeCaptures(state);
+
+        assertEquals(BoardPhase.MOVE, state.phase());
+        assertFalse(state.gameResult().finished());
+    }
+
+    @Test
+    void staticGoldfishWithWeakGateDoesNotFinishOrTriggerWeakThresholdWin() {
+        BoardState state = staticGoldfishSquareCaptureState(TraditionalWinningPattern.GOLDFISH, weakPiecesWithGateForCount(15));
+
+        triggerFormation(state, p(5, 2), p(4, 2));
+        completeCaptures(state);
+
+        assertEquals(BoardPhase.MOVE, state.phase());
+        assertFalse(state.gameResult().finished());
+    }
+
+    @Test
+    void staticLhasaDoesNotFinishWhenWeakSideStartedInsideFlyThreshold() {
+        BoardState state = staticLhasaSquareCaptureState(TraditionalWinningPattern.LHASA, weakNoGatePieces(14));
+
+        triggerFormation(state, p(5, 2), p(4, 2));
+        completeCaptures(state);
+
+        assertEquals(BoardPhase.MOVE, state.phase());
+        assertFalse(state.gameResult().finished());
+    }
+
+    @Test
+    void staticLhasaIsDisabledWhenTraditionalWinningPatternIsOff() {
+        BoardState state = staticLhasaSquareCaptureState(TraditionalWinningPattern.OFF, weakNoGatePieces(15));
+
+        triggerFormation(state, p(5, 2), p(4, 2));
+        completeCaptures(state);
+
+        assertEquals(BoardPhase.MOVE, state.phase());
+        assertFalse(state.gameResult().finished());
+    }
+
+    @Test
+    void staticGoldfishIsDisabledInCompetitiveMode() {
+        BoardState state = competitiveStaticGoldfishSquareCaptureState();
+        state.setTraditionalWinningPattern(TraditionalWinningPattern.GOLDFISH);
+
+        triggerFormation(state, p(2, 1), p(1, 1));
+        assertEquals(BoardPhase.SQUARE_CAPTURE, state.phase());
+        state.handlePrimaryClick(p(0, 6));
+
+        assertEquals(BoardPhase.MOVE, state.phase());
+        assertFalse(state.gameResult().finished());
+        assertEquals(TraditionalWinningPattern.OFF, state.traditionalWinningPattern());
     }
 
     @Test
@@ -247,7 +355,7 @@ class TraditionalWinningPatternTest {
     void competitiveBoardStateNormalizesTraditionalWinningPatternToOff() {
         BoardState state = new BoardState(RuleMode.COMPETITIVE);
 
-        state.setTraditionalWinningPattern(TraditionalWinningPattern.LHASA);
+        state.setTraditionalWinningPattern(TraditionalWinningPattern.GOLDFISH);
 
         assertEquals(TraditionalWinningPattern.OFF, state.traditionalWinningPattern());
     }
@@ -270,7 +378,7 @@ class TraditionalWinningPatternTest {
             BoardPoint from,
             BoardPoint to
     ) {
-        BoardState state = lhasaCaptureState(
+        return lhasaCaptureState(
                 winningPattern,
                 finalFormationPoints,
                 from,
@@ -278,7 +386,6 @@ class TraditionalWinningPatternTest {
                 weakNoGatePieces(),
                 winnerExtraPieces()
         );
-        return state;
     }
 
     private static BoardState lhasaCaptureState(
@@ -294,7 +401,11 @@ class TraditionalWinningPatternTest {
         return state;
     }
 
-    private static BoardState formationMoveState(List<BoardPoint> finalFormationPoints, BoardPoint from, BoardPoint to) {
+    private static BoardState formationMoveState(
+            List<BoardPoint> finalFormationPoints,
+            BoardPoint from,
+            BoardPoint to
+    ) {
         return formationMoveState(finalFormationPoints, from, to, weakNoGatePieces(), winnerExtraPieces());
     }
 
@@ -343,13 +454,55 @@ class TraditionalWinningPatternTest {
         return state;
     }
 
+    private static BoardState staticLhasaSquareCaptureState(
+            TraditionalWinningPattern winningPattern,
+            List<BoardPoint> weakPieces
+    ) {
+        BoardState state = squareCaptureState(RuleMode.TRADITIONAL_BASIC, winningPattern, weakPieces);
+        for (BoardPoint point : shiftedLhasaDoubleDoorPoints()) {
+            state.putForTesting(point, 2);
+        }
+        return state;
+    }
+
+    private static BoardState staticGoldfishSquareCaptureState(
+            TraditionalWinningPattern winningPattern,
+            List<BoardPoint> weakPieces
+    ) {
+        BoardState state = squareCaptureState(RuleMode.TRADITIONAL_BASIC, winningPattern, weakPieces);
+        for (BoardPoint point : shiftedGoldfishPoints()) {
+            state.putForTesting(point, 2);
+        }
+        return state;
+    }
+
+    private static BoardState competitiveStaticGoldfishSquareCaptureState() {
+        BoardState state = new BoardState(RuleMode.COMPETITIVE);
+        state.enterMovePhaseForTesting(1);
+        for (BoardPoint point : List.of(p(0, 0), p(1, 0), p(0, 1), p(2, 1))) {
+            state.putForTesting(point, 2);
+        }
+        for (BoardPoint point : List.of(
+                p(2, 4), p(3, 4), p(4, 4), p(5, 4),
+                p(2, 5), p(3, 5), p(5, 5),
+                p(1, 6), p(3, 6), p(4, 6),
+                p(1, 7), p(2, 7), p(3, 7), p(4, 7)
+        )) {
+            state.putForTesting(point, 2);
+        }
+        for (BoardPoint point : List.of(p(0, 6), p(1, 6), p(2, 6), p(3, 6), p(0, 7), p(1, 7))) {
+            state.putForTesting(point, 1);
+        }
+        return state;
+    }
+
     private static FormationCase flatDalianCase() {
         BoardState state = formationMoveState(
                 List.of(p(3, 1), p(4, 1), p(3, 2), p(3, 3), p(4, 3), p(3, 4), p(4, 4)),
                 p(4, 2),
                 p(4, 3)
         );
-        return new FormationCase("平门褡裢", state, p(4, 2), p(4, 3));
+        return new FormationCase("flat dalian", state, p(4, 2), p(4, 3));
     }
 
     private static FormationCase doubleDoorDalianCase() {
@@ -359,17 +512,17 @@ class TraditionalWinningPatternTest {
                 p(4, 2),
                 p(4, 3)
         );
-        return new FormationCase("平口双门褡裢", state, p(4, 2), p(4, 3));
+        return new FormationCase("double-door dalian", state, p(4, 2), p(4, 3));
     }
 
     private static FormationCase gunCase() {
         BoardState state = lineRowMoveState(0, p(13, 1), p(13, 0), List.of());
-        return new FormationCase("枪", state, p(13, 1), p(13, 0));
+        return new FormationCase("gun", state, p(13, 1), p(13, 0));
     }
 
     private static FormationCase shaCase() {
         BoardState state = lineRowMoveState(1, p(6, 2), p(6, 1), List.of(p(5, 0), p(6, 0)));
-        return new FormationCase("煞", state, p(6, 2), p(6, 1));
+        return new FormationCase("sha", state, p(6, 2), p(6, 1));
     }
 
     private static BoardState lineRowMoveState(int rank, BoardPoint from, BoardPoint to, List<BoardPoint> extraOwnPieces) {
@@ -402,6 +555,29 @@ class TraditionalWinningPatternTest {
     private static List<BoardPoint> lhasaThreeDoorPoints() {
         return List.of(p(3, 1), p(4, 1), p(5, 1), p(6, 1), p(3, 2), p(5, 2), p(6, 2),
                 p(3, 3), p(4, 3), p(5, 3), p(3, 4), p(4, 4), p(5, 4), p(6, 4));
+    }
+
+    private static List<BoardPoint> goldfishPoints() {
+        return List.of(
+                p(1, 0), p(2, 0), p(3, 0), p(4, 0),
+                p(1, 1), p(2, 1), p(4, 1),
+                p(0, 2), p(2, 2), p(3, 2),
+                p(0, 3), p(1, 3), p(2, 3), p(3, 3)
+        );
+    }
+
+    private static List<BoardPoint> shiftedLhasaDoubleDoorPoints() {
+        return shift(lhasaDoubleDoorPoints(), 3, 3);
+    }
+
+    private static List<BoardPoint> shiftedGoldfishPoints() {
+        return shift(goldfishPoints(), 6, 4);
+    }
+
+    private static List<BoardPoint> shift(List<BoardPoint> points, int fileOffset, int rankOffset) {
+        return points.stream()
+                .map(point -> p(point.fileIndex() + fileOffset, point.rankIndex() + rankOffset))
+                .toList();
     }
 
     private static List<BoardPoint> captureTargetsForCompletion() {

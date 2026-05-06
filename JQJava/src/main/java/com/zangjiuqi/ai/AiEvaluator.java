@@ -18,7 +18,7 @@ final class AiEvaluator {
         this.generator = generator;
     }
 
-    int evaluate(BoardState state, PieceColor perspective) {
+    int evaluateCompetitive(BoardState state, PieceColor perspective) {
         GameResult result = state.gameResult();
         if (result.finished()) {
             return result.winner()
@@ -27,14 +27,30 @@ final class AiEvaluator {
         }
 
         PieceColor opponent = perspective.opponent();
-        int material = (pieceCount(state, perspective) - pieceCount(state, opponent)) * 500;
+        int material = (AiScoringSupport.pieceCount(state, perspective) - AiScoringSupport.pieceCount(state, opponent)) * 500;
         int mobility = mobilityScore(state, perspective) - mobilityScore(state, opponent);
-        int squarePotential = squarePotential(state, perspective) - squarePotential(state, opponent);
+        int squarePotential = AiScoringSupport.squarePotential(state, perspective) - AiScoringSupport.squarePotential(state, opponent);
         int opportunity = state.ruleConfig().boardSize() <= 8
                 ? immediateOpportunityScore(state, perspective) - immediateOpportunityScore(state, opponent)
                 : 0;
-        int center = centerScore(state, perspective) - centerScore(state, opponent);
+        int center = AiScoringSupport.centerScore(state, perspective) - AiScoringSupport.centerScore(state, opponent);
         return material + mobility * 2 + squarePotential * 20 + opportunity + center;
+    }
+
+    int evaluateTraditionalBase(BoardState state, PieceColor perspective) {
+        GameResult result = state.gameResult();
+        if (result.finished()) {
+            return result.winner()
+                    .map(winner -> winner == perspective ? 1_000_000 : -1_000_000)
+                    .orElse(0);
+        }
+
+        PieceColor opponent = perspective.opponent();
+        int material = (AiScoringSupport.pieceCount(state, perspective) - AiScoringSupport.pieceCount(state, opponent)) * 220;
+        int mobility = mobilityScore(state, perspective) - mobilityScore(state, opponent);
+        int squarePotential = AiScoringSupport.squarePotential(state, perspective) - AiScoringSupport.squarePotential(state, opponent);
+        int center = AiScoringSupport.centerScore(state, perspective) - AiScoringSupport.centerScore(state, opponent);
+        return material + mobility + squarePotential * 12 + center;
     }
 
     private int mobilityScore(BoardState state, PieceColor color) {
@@ -70,7 +86,7 @@ final class AiEvaluator {
                 score += 20_000;
             }
             score += probe.lastFormationMatch()
-                    .map(match -> 500 + match.captureCount() * 300 + formationNameBonus(match.name()))
+                    .map(match -> 500 + match.captureCount() * 300 + AiScoringSupport.formationNameBonus(match.name()) / 20)
                     .orElse(0);
             if (probe.phase() == BoardPhase.SQUARE_CAPTURE) {
                 score += probe.pendingCaptureCount() * 150;
@@ -99,82 +115,4 @@ final class AiEvaluator {
         }
     }
 
-    private int pieceCount(BoardState state, PieceColor color) {
-        int count = 0;
-        int[][] cells = state.snapshot();
-        for (int file = 0; file < cells.length; file++) {
-            for (int rank = 0; rank < cells[file].length; rank++) {
-                int value = cells[file][rank];
-                if (value > 0 && PieceColor.fromPieceValue(value) == color) {
-                    count++;
-                }
-            }
-        }
-        return count;
-    }
-
-    private int squarePotential(BoardState state, PieceColor color) {
-        int score = 0;
-        int size = state.ruleConfig().boardSize();
-        int[][] cells = state.snapshot();
-        for (int file = 0; file < size - 1; file++) {
-            for (int rank = 0; rank < size - 1; rank++) {
-                int own = 0;
-                int empty = 0;
-                BoardPoint[] square = {
-                        new BoardPoint(file, rank),
-                        new BoardPoint(file + 1, rank),
-                        new BoardPoint(file, rank + 1),
-                        new BoardPoint(file + 1, rank + 1)
-                };
-                for (BoardPoint point : square) {
-                    int value = cells[point.fileIndex()][point.rankIndex()];
-                    if (value == 0) {
-                        empty++;
-                    } else if (PieceColor.fromPieceValue(value) == color) {
-                        own++;
-                    }
-                }
-                if (own == 3 && empty == 1) {
-                    score += 4;
-                } else if (own == 2 && empty == 2) {
-                    score += 1;
-                }
-            }
-        }
-        return score;
-    }
-
-    private int centerScore(BoardState state, PieceColor color) {
-        int score = 0;
-        int size = state.ruleConfig().boardSize();
-        double center = (size - 1) / 2.0;
-        int[][] cells = state.snapshot();
-        for (int file = 0; file < size; file++) {
-            for (int rank = 0; rank < size; rank++) {
-                int value = cells[file][rank];
-                if (value > 0 && PieceColor.fromPieceValue(value) == color) {
-                    double distance = Math.abs(file - center) + Math.abs(rank - center);
-                    score += Math.max(0, size - (int) Math.round(distance));
-                }
-            }
-        }
-        return score;
-    }
-
-    private int formationNameBonus(String name) {
-        if (name.contains("煞")) {
-            return 560;
-        }
-        if (name.contains("枪")) {
-            return 460;
-        }
-        if (name.contains("拉萨")) {
-            return 350;
-        }
-        if (name.contains("双门")) {
-            return 220;
-        }
-        return 120;
-    }
 }

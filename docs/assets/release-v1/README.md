@@ -9,7 +9,7 @@
 - `01-main-competitive-8x8.png`：竞技化 `8x8` 主界面。
 - `02-traditional-14x14.png`：传统基础 `14x14` 主界面。
 - `03-formation-capture.png`：阵型触发后的补吃状态。
-- `04-lhasa-winning-pattern.png`：拉萨获胜阵型相关界面或结果。
+- `04-winning-pattern.png`：拉萨/金鱼可选获胜阵型相关界面或结果。
 - `05-fly-threshold-adjudication.png`：弱势方飞子临界保门胜相关界面或结果。
 
 ## 截图步骤

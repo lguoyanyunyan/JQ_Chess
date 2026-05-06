@@ -2,7 +2,8 @@ package com.zangjiuqi.core;
 
 public enum TraditionalWinningPattern {
     OFF("关闭"),
-    LHASA("拉萨");
+    LHASA("拉萨"),
+    GOLDFISH("金鱼");
 
     private final String displayName;
 
